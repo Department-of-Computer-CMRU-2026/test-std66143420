@@ -108,6 +108,10 @@ jobs:
           docker exec $APP_CONTAINER php artisan migrate --force
           docker exec $APP_CONTAINER php artisan storage:link || true
           
+          # 🟢 4. Build JS/CSS assets via Vite
+          docker exec $APP_CONTAINER npm ci
+          docker exec $APP_CONTAINER npm run build
+          
       - name: System Cleanup
         run: |
           docker image prune -f
