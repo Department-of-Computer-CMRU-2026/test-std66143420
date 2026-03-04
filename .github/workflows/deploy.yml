@@ -75,6 +75,11 @@ jobs:
           # 🟢 Set DB_HOST dynamically ให้ตรงกับ container name จริง
           update_env "DB_HOST" "${STUDENT_NAME}-db"
 
+      - name: Build Frontend Assets
+        run: |
+          npm install
+          npm run build
+
       - name: Stop Existing Containers
         run: |
           STUDENT_NAME=${{ env.STUDENT_NAME }}
@@ -107,13 +112,6 @@ jobs:
           docker exec $APP_CONTAINER php artisan key:generate --force
           docker exec $APP_CONTAINER php artisan migrate --force
           docker exec -u root $APP_CONTAINER php artisan storage:link || true
-          
-          # 🟢 4. Build JS/CSS assets via Vite
-          docker exec -u root $APP_CONTAINER npm install
-          docker exec -u root $APP_CONTAINER npm run build
-          
-          # Fix ownership after build just in case
-          docker exec -u root $APP_CONTAINER chown -R www-data:www-data public/build 2>/dev/null || true
           
       - name: System Cleanup
         run: |
