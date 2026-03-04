@@ -109,8 +109,8 @@ jobs:
           docker exec -u root $APP_CONTAINER php artisan storage:link || true
           
           # 🟢 4. Build JS/CSS assets via Vite
-          docker exec $APP_CONTAINER npm install
-          docker exec $APP_CONTAINER npm run build
+          docker exec -u root $APP_CONTAINER npm install
+          docker exec -u root $APP_CONTAINER npm run build
           
           # Fix ownership after build just in case
           docker exec -u root $APP_CONTAINER chown -R www-data:www-data public/build 2>/dev/null || true
