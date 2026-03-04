@@ -2,6 +2,7 @@
 
 use App\Models\Student;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
 use Livewire\Livewire;
 
 test('unauthenticated users cannot view students', function () {
@@ -125,4 +126,35 @@ test('authenticated users can search students', function () {
         ->set('search', 'Jones')
         ->assertSee('Bob')
         ->assertDontSee('Alice');
+});
+
+test('authenticated users can export students', function () {
+    $user = User::factory()->create();
+    Student::factory()->count(5)->create();
+
+    Livewire::actingAs($user)
+        ->test('pages::students.index')
+        ->call('export')
+        ->assertFileDownloaded('students.csv');
+});
+
+test('authenticated users can import students', function () {
+    $user = User::factory()->create();
+    
+    $csvContent = "ID,Student ID,First Name,Last Name,Email,Phone,Major,Active\n" .
+                  ",STD-8888,Test,User,test8888@example.com,1234567890,IT,Yes\n";
+                  
+    $file = UploadedFile::fake()->createWithContent('students.csv', $csvContent);
+
+    Livewire::actingAs($user)
+        ->test('pages::students.index')
+        ->set('importFile', $file)
+        ->call('import')
+        ->assertDispatched('swal:alert');
+
+    $this->assertDatabaseHas('students', [
+        'student_id' => 'STD-8888',
+        'first_name' => 'Test',
+        'email' => 'test8888@example.com'
+    ]);
 });
