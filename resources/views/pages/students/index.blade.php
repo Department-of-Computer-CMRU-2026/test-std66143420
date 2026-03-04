@@ -2,15 +2,34 @@
 
 use App\Models\Student;
 use Livewire\Attributes\On;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 new class extends Component {
     use WithPagination;
+
+    #[Url(history: true)]
+    public string $search = '';
+
+    public function updatingSearch(): void
+    {
+        $this->resetPage();
+    }
+
     public function with(): array
     {
         return [
-            'students' => Student::latest()->paginate(10),
+            'students' => Student::query()
+                ->when($this->search, function ($query) {
+                    $query->where('student_id', 'like', '%' . $this->search . '%')
+                          ->orWhere('first_name', 'like', '%' . $this->search . '%')
+                          ->orWhere('last_name', 'like', '%' . $this->search . '%')
+                          ->orWhere('email', 'like', '%' . $this->search . '%')
+                          ->orWhere('major', 'like', '%' . $this->search . '%');
+                })
+                ->latest()
+                ->paginate(10),
         ];
     }
 
@@ -114,9 +133,13 @@ new class extends Component {
             }
         }"
     >
-        <div class="flex items-center justify-between">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <flux:heading size="xl" level="1">Students</flux:heading>
-            <flux:button variant="primary" href="{{ route('students.create') }}" wire:navigate>Add Student</flux:button>
+            
+            <div class="flex items-center gap-4">
+                <flux:input wire:model.live="search" icon="magnifying-glass" placeholder="Search students..." class="w-full sm:w-64" clearable />
+                <flux:button variant="primary" href="{{ route('students.create') }}" wire:navigate class="whitespace-nowrap">Add Student</flux:button>
+            </div>
         </div>
 
         <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4">

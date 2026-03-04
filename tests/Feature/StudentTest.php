@@ -102,3 +102,27 @@ test('authenticated users can toggle student status', function () {
         'is_active' => false,
     ]);
 });
+
+test('authenticated users can search students', function () {
+    $user = User::factory()->create();
+    
+    // Create specific students to search for
+    Student::factory()->create(['first_name' => 'Alice', 'last_name' => 'Smith', 'email' => 'alice@example.com']);
+    Student::factory()->create(['first_name' => 'Bob', 'last_name' => 'Jones', 'email' => 'bob@example.com']);
+    Student::factory()->create(['first_name' => 'Charlie', 'last_name' => 'Brown', 'email' => 'charlie@example.com']);
+
+    // Search for Alice
+    Livewire::actingAs($user)
+        ->test('pages::students.index')
+        ->set('search', 'Alice')
+        ->assertSee('Alice')
+        ->assertDontSee('Bob')
+        ->assertDontSee('Charlie');
+
+    // Search for Jones (Bob)
+    Livewire::actingAs($user)
+        ->test('pages::students.index')
+        ->set('search', 'Jones')
+        ->assertSee('Bob')
+        ->assertDontSee('Alice');
+});
