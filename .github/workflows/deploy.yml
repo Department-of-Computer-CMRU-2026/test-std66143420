@@ -1,4 +1,15 @@
-steps:
+name: Deploy Application
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
   - name: Prepare Environment Variables
     run: |
       # Try to get STUDENT_ID from .env.example if it exists (prioritize repo config)
