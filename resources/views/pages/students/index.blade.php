@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Student;
+use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -13,15 +14,106 @@ new class extends Component {
         ];
     }
 
-    public function deleteStudent(Student $student): void
+    public function confirmDelete(int $id): void
     {
-        $student->delete();
+        $this->dispatch('swal:confirm-delete', [
+            'title' => 'Are you sure?',
+            'text' => 'You won\'t be able to revert this!',
+            'icon' => 'warning',
+            'id' => $id
+        ]);
+    }
+
+    #[On('delete-student')]
+    public function deleteStudent(int $id): void
+    {
+        Student::findOrFail($id)->delete();
+        $this->dispatch('swal:alert', [
+            'title' => 'Deleted!',
+            'text' => 'The student has been deleted.',
+            'icon' => 'success'
+        ]);
         $this->dispatch('student-deleted');
+    }
+
+    public function toggleStatus(int $id): void
+    {
+        $student = Student::findOrFail($id);
+        
+        $this->dispatch('swal:confirm-status', [
+            'title' => 'Change Status?',
+            'text' => "Do you want to change the status of {$student->first_name}?",
+            'icon' => 'question',
+            'id' => $id,
+            'current' => $student->is_active
+        ]);
+    }
+
+    #[On('change-status')]
+    public function updateStatus(int $id): void
+    {
+        $student = Student::findOrFail($id);
+        $student->update(['is_active' => !$student->is_active]);
+        
+        $this->dispatch('swal:alert', [
+            'title' => 'Updated!',
+            'text' => 'Student status has been changed.',
+            'icon' => 'success'
+        ]);
     }
 };
 ?>
 
-    <div class="flex h-full w-full flex-1 flex-col gap-4 rounded-xl">
+    <div class="flex h-full w-full flex-1 flex-col gap-4 rounded-xl"
+        x-data="{
+            init() {
+                Livewire.on('swal:confirm-delete', (event) => {
+                    const data = event[0];
+                    Swal.fire({
+                        title: data.title,
+                        text: data.text,
+                        icon: data.icon,
+                        showCancelButton: true,
+                        confirmButtonColor: '#ef4444',
+                        cancelButtonColor: '#6b7280',
+                        confirmButtonText: 'Yes, delete it!'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            $wire.dispatch('delete-student', { id: data.id });
+                        }
+                    });
+                });
+
+                Livewire.on('swal:confirm-status', (event) => {
+                    const data = event[0];
+                    Swal.fire({
+                        title: data.title,
+                        text: data.text,
+                        icon: data.icon,
+                        showCancelButton: true,
+                        confirmButtonColor: '#3b82f6',
+                        cancelButtonColor: '#6b7280',
+                        confirmButtonText: 'Yes, change it!'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            $wire.dispatch('change-status', { id: data.id });
+                        }
+                    });
+                });
+
+                Livewire.on('swal:alert', (event) => {
+                    const data = event[0];
+                    Swal.fire({
+                        title: data.title,
+                        text: data.text,
+                        icon: data.icon,
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                });
+            }
+        }"
+    >
         <div class="flex items-center justify-between">
             <flux:heading size="xl" level="1">Students</flux:heading>
             <flux:button variant="primary" href="{{ route('students.create') }}" wire:navigate>Add Student</flux:button>
@@ -34,6 +126,7 @@ new class extends Component {
                     <flux:table.column>Name</flux:table.column>
                     <flux:table.column>Email</flux:table.column>
                     <flux:table.column>Major</flux:table.column>
+                    <flux:table.column>Status</flux:table.column>
                     <flux:table.column>Actions</flux:table.column>
                 </flux:table.columns>
 
@@ -45,29 +138,12 @@ new class extends Component {
                             <flux:table.cell>{{ $student->email }}</flux:table.cell>
                             <flux:table.cell>{{ $student->major }}</flux:table.cell>
                             <flux:table.cell>
+                                <flux:switch wire:click="toggleStatus({{ $student->id }})" :checked="$student->is_active" />
+                            </flux:table.cell>
+                            <flux:table.cell>
                                 <div class="flex gap-2">
                                     <flux:button variant="ghost" size="sm" href="{{ route('students.edit', $student) }}" wire:navigate>Edit</flux:button>
-                                    
-                                    <flux:modal.trigger :name="'delete-student-'.$student->id">
-                                        <flux:button variant="danger" size="sm">Delete</flux:button>
-                                    </flux:modal.trigger>
-
-                                    <flux:modal :name="'delete-student-'.$student->id" class="min-w-[22rem]">
-                                        <form wire:submit="deleteStudent({{ $student->id }})">
-                                            <flux:heading size="lg">Delete Student?</flux:heading>
-                                            <flux:text class="mt-2 text-sm text-neutral-500">
-                                                Are you sure you want to delete {{ $student->first_name }} {{ $student->last_name }}? This action cannot be undone.
-                                            </flux:text>
-                                            
-                                            <div class="mt-4 flex gap-2">
-                                                <flux:spacer />
-                                                <flux:modal.close>
-                                                    <flux:button variant="ghost">Cancel</flux:button>
-                                                </flux:modal.close>
-                                                <flux:button type="submit" variant="danger">Delete</flux:button>
-                                            </div>
-                                        </form>
-                                    </flux:modal>
+                                    <flux:button variant="danger" size="sm" wire:click="confirmDelete({{ $student->id }})">Delete</flux:button>
                                 </div>
                             </flux:table.cell>
                         </flux:table.row>

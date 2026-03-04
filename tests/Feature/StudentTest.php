@@ -69,10 +69,36 @@ test('authenticated users can delete a student', function () {
     
     Livewire::actingAs($user)
         ->test('pages::students.index')
+        ->call('confirmDelete', $student->id)
+        ->assertDispatched('swal:confirm-delete');
+        
+    Livewire::actingAs($user)
+        ->test('pages::students.index')
         ->call('deleteStudent', $student->id)
-        ->assertDispatched('student-deleted');
+        ->assertDispatched('student-deleted')
+        ->assertDispatched('swal:alert');
 
     $this->assertDatabaseMissing('students', [
         'id' => $student->id,
+    ]);
+});
+
+test('authenticated users can toggle student status', function () {
+    $user = User::factory()->create();
+    $student = Student::factory()->create(['is_active' => true]);
+    
+    Livewire::actingAs($user)
+        ->test('pages::students.index')
+        ->call('toggleStatus', $student->id)
+        ->assertDispatched('swal:confirm-status');
+        
+    Livewire::actingAs($user)
+        ->test('pages::students.index')
+        ->call('updateStatus', $student->id)
+        ->assertDispatched('swal:alert');
+
+    $this->assertDatabaseHas('students', [
+        'id' => $student->id,
+        'is_active' => false,
     ]);
 });

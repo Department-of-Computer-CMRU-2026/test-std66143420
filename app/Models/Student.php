@@ -16,5 +16,13 @@ class Student extends Model
         'email',
         'phone',
         'major',
+        'is_active',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'is_active' => 'boolean',
+        ];
+    }
 }
