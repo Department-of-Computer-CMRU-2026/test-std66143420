@@ -1,0 +1,96 @@
+services:
+  # 1. Laravel Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        user: laravel
+        uid: 1000
+    image: ${STUDENT_NAME}-app
+    container_name: ${STUDENT_NAME}-app
+    restart: unless-stopped
+    working_dir: /var/www/
+    mem_limit: 128m
+    cpus: 0.10
+    volumes:
+      - ./:/var/www
+      - /var/www/vendor # ป้องกันไม่ให้ Volume หลักทับ Vendor ที่ build มา
+      - storage-data:/var/www/storage/app/public # Persist uploads
+    environment:
+      - TZ=Asia/Bangkok
+      - DB_HOST=${STUDENT_NAME}-db
+    networks:
+      - app-network
+    depends_on:
+      db:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 2. Nginx Web Server
+  nginx:
+    image: nginx:alpine
+    container_name: ${STUDENT_NAME}-nginx
+    restart: unless-stopped
+    mem_limit: 32m
+    cpus: 0.05
+    ports:
+      - "${STUDENT_PORT}:80"
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx:/etc/nginx/conf.d/
+      - storage-data:/var/www/storage/app/public # Share uploads with Nginx
+    environment:
+      - TZ=Asia/Bangkok
+    networks:
+      - app-network
+    depends_on:
+      - app
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 3. PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    container_name: ${STUDENT_NAME}-db
+    restart: unless-stopped
+    mem_limit: 128m
+    cpus: 0.10
+    ports:
+      - "${FORWARD_DB_PORT}:5432"
+    environment:
+      - TZ=Asia/Bangkok
+      - POSTGRES_DB=${DB_DATABASE}
+      - POSTGRES_USER=${DB_USERNAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  app-network:
+    name: "${STUDENT_NAME}-net"
+
+volumes:
+  db-data:
+    name: "${STUDENT_NAME}-db-data"
+  storage-data:
+    name: "${STUDENT_NAME}-storage-data"
