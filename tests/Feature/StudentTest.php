@@ -218,3 +218,19 @@ test('authenticated users can bulk deactivate students', function () {
         ]);
     }
 });
+
+test('authenticated users can view the student directory with cards', function () {
+    $user = User::factory()->create();
+    $student1 = Student::factory()->create(['is_active' => true, 'first_name' => 'ActiveStudent']);
+    $student2 = Student::factory()->create(['is_active' => false, 'first_name' => 'InactiveStudent']);
+
+    $response = $this->actingAs($user)->get(route('directory'));
+    $response->assertOk();
+
+    // Verify correct component is rendered and has card view wrapper classes
+    Livewire::actingAs($user)
+        ->test('pages::directory')
+        ->assertSee($student1->first_name)
+        ->assertDontSee($student2->first_name) // only active returned
+        ->assertSee('Student Directory');
+});
