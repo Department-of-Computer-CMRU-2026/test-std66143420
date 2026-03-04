@@ -29,7 +29,7 @@ new class extends Component {
                           ->orWhere('major', 'like', '%' . $this->search . '%');
                 })
                 ->latest()
-                ->paginate(10),
+                ->paginate(20),
         ];
     }
 
