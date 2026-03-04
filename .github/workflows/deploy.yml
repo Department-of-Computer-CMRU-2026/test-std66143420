@@ -75,6 +75,14 @@ jobs:
           # 🟢 Set DB_HOST dynamically ให้ตรงกับ container name จริง
           update_env "DB_HOST" "${STUDENT_NAME}-db"
 
+      - name: Setup PHP for Runner
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+
+      - name: Install PHP Dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
       - name: Build Frontend Assets
         run: |
           npm install
