@@ -14,10 +14,48 @@ new class extends Component {
     public string $search = '';
 
     public $importFile;
+    public array $selectedStudents = [];
+    public bool $selectAll = false;
+
+    public function updatedSelectAll($value): void
+    {
+        if ($value) {
+            $this->selectedStudents = Student::query()
+                ->when($this->search, function ($query) {
+                    $query->where('student_id', 'like', '%' . $this->search . '%')
+                          ->orWhere('first_name', 'like', '%' . $this->search . '%')
+                          ->orWhere('last_name', 'like', '%' . $this->search . '%')
+                          ->orWhere('email', 'like', '%' . $this->search . '%')
+                          ->orWhere('major', 'like', '%' . $this->search . '%');
+                })
+                ->pluck('id')
+                ->map(fn($id) => (string) $id)
+                ->toArray();
+        } else {
+            $this->selectedStudents = [];
+        }
+    }
+
+    public function updatedSelectedStudents(): void
+    {
+        $totalStudents = Student::query()
+                ->when($this->search, function ($query) {
+                    $query->where('student_id', 'like', '%' . $this->search . '%')
+                          ->orWhere('first_name', 'like', '%' . $this->search . '%')
+                          ->orWhere('last_name', 'like', '%' . $this->search . '%')
+                          ->orWhere('email', 'like', '%' . $this->search . '%')
+                          ->orWhere('major', 'like', '%' . $this->search . '%');
+                })
+                ->count();
+        
+        $this->selectAll = count($this->selectedStudents) === $totalStudents && $totalStudents > 0;
+    }
 
     public function updatingSearch(): void
     {
         $this->resetPage();
+        $this->selectedStudents = [];
+        $this->selectAll = false;
     }
 
     public function with(): array
@@ -38,6 +76,7 @@ new class extends Component {
 
     public function export()
     {
+        // ... (existing export logic)
         $headers = [
             "Content-type"        => "text/csv",
             "Content-Disposition" => "attachment; filename=students.csv",
@@ -80,6 +119,7 @@ new class extends Component {
 
     public function import()
     {
+        // ... (existing import logic)
         $this->validate([
             'importFile' => 'required|mimes:csv,txt|max:10240',
         ]);
@@ -131,6 +171,18 @@ new class extends Component {
         ]);
     }
 
+    public function confirmBulkDelete(): void
+    {
+        $count = count($this->selectedStudents);
+        if ($count === 0) return;
+
+        $this->dispatch('swal:confirm-bulk-delete', [
+            'title' => 'Delete Selected?',
+            'text' => "Are you sure you want to delete $count students? This cannot be undone.",
+            'icon' => 'warning'
+        ]);
+    }
+
     #[On('delete-student')]
     public function deleteStudent(int $id): void
     {
@@ -141,6 +193,26 @@ new class extends Component {
             'icon' => 'success'
         ]);
         $this->dispatch('student-deleted');
+    }
+
+    #[On('bulk-delete-students')]
+    public function bulkDeleteStudents(): void
+    {
+        if (count($this->selectedStudents) === 0) return;
+
+        Student::whereIn('id', $this->selectedStudents)->delete();
+        
+        $count = count($this->selectedStudents);
+        $this->selectedStudents = [];
+        $this->selectAll = false;
+
+        $this->dispatch('swal:alert', [
+            'title' => 'Deleted!',
+            'text' => "$count students have been deleted.",
+            'icon' => 'success'
+        ]);
+        
+        $this->resetPage();
     }
 
     public function toggleStatus(int $id): void
@@ -168,6 +240,40 @@ new class extends Component {
             'icon' => 'success'
         ]);
     }
+
+    public function bulkActivate(): void
+    {
+        if (count($this->selectedStudents) === 0) return;
+
+        Student::whereIn('id', $this->selectedStudents)->update(['is_active' => true]);
+        
+        $count = count($this->selectedStudents);
+        $this->selectedStudents = [];
+        $this->selectAll = false;
+
+        $this->dispatch('swal:alert', [
+            'title' => 'Activated!',
+            'text' => "$count students have been set to Active.",
+            'icon' => 'success'
+        ]);
+    }
+
+    public function bulkDeactivate(): void
+    {
+        if (count($this->selectedStudents) === 0) return;
+
+        Student::whereIn('id', $this->selectedStudents)->update(['is_active' => false]);
+        
+        $count = count($this->selectedStudents);
+        $this->selectedStudents = [];
+        $this->selectAll = false;
+
+        $this->dispatch('swal:alert', [
+            'title' => 'Deactivated!',
+            'text' => "$count students have been set to Inactive.",
+            'icon' => 'success'
+        ]);
+    }
 };
 ?>
 
@@ -187,6 +293,23 @@ new class extends Component {
                     }).then((result) => {
                         if (result.isConfirmed) {
                             $wire.dispatch('delete-student', { id: data.id });
+                        }
+                    });
+                });
+
+                Livewire.on('swal:confirm-bulk-delete', (event) => {
+                    const data = event[0];
+                    Swal.fire({
+                        title: data.title,
+                        text: data.text,
+                        icon: data.icon,
+                        showCancelButton: true,
+                        confirmButtonColor: '#ef4444',
+                        cancelButtonColor: '#6b7280',
+                        confirmButtonText: 'Yes, delete them!'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            $wire.dispatch('bulk-delete-students');
                         }
                     });
                 });
@@ -261,9 +384,21 @@ new class extends Component {
             </div>
         </div>
 
+        @if (count($selectedStudents) > 0)
+        <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800 p-2 flex gap-2 items-center">
+            <flux:text class="text-sm px-2 font-medium">{{ count($selectedStudents) }} selected</flux:text>
+            <flux:button size="sm" variant="ghost" wire:click="bulkActivate">Set Active</flux:button>
+            <flux:button size="sm" variant="ghost" wire:click="bulkDeactivate">Set Inactive</flux:button>
+            <flux:button size="sm" variant="danger" wire:click="confirmBulkDelete">Delete Selected</flux:button>
+        </div>
+        @endif
+
         <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4">
             <flux:table>
                 <flux:table.columns>
+                    <flux:table.column>
+                        <flux:checkbox wire:model.live="selectAll" />
+                    </flux:table.column>
                     <flux:table.column>ID</flux:table.column>
                     <flux:table.column>Name</flux:table.column>
                     <flux:table.column>Email</flux:table.column>
@@ -275,6 +410,9 @@ new class extends Component {
                 <flux:table.rows>
                     @foreach ($students as $student)
                         <flux:table.row :key="$student->id">
+                            <flux:table.cell>
+                                <flux:checkbox wire:model.live="selectedStudents" :value="(string) $student->id" />
+                            </flux:table.cell>
                             <flux:table.cell>{{ $student->student_id }}</flux:table.cell>
                             <flux:table.cell>{{ $student->first_name }} {{ $student->last_name }}</flux:table.cell>
                             <flux:table.cell>{{ $student->email }}</flux:table.cell>

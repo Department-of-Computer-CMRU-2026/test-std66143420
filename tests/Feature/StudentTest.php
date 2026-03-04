@@ -158,3 +158,63 @@ test('authenticated users can import students', function () {
         'email' => 'test8888@example.com'
     ]);
 });
+
+test('authenticated users can bulk delete students', function () {
+    $user = User::factory()->create();
+    $students = Student::factory()->count(3)->create();
+    $studentIds = $students->pluck('id')->map(fn($id) => (string) $id)->toArray();
+
+    Livewire::actingAs($user)
+        ->test('pages::students.index')
+        ->set('selectedStudents', $studentIds)
+        ->call('confirmBulkDelete')
+        ->assertDispatched('swal:confirm-bulk-delete');
+
+    Livewire::actingAs($user)
+        ->test('pages::students.index')
+        ->set('selectedStudents', $studentIds)
+        ->call('bulkDeleteStudents')
+        ->assertDispatched('swal:alert');
+
+    foreach ($students as $student) {
+        $this->assertDatabaseMissing('students', ['id' => $student->id]);
+    }
+});
+
+test('authenticated users can bulk activate students', function () {
+    $user = User::factory()->create();
+    $students = Student::factory()->count(2)->create(['is_active' => false]);
+    $studentIds = $students->pluck('id')->map(fn($id) => (string) $id)->toArray();
+
+    Livewire::actingAs($user)
+        ->test('pages::students.index')
+        ->set('selectedStudents', $studentIds)
+        ->call('bulkActivate')
+        ->assertDispatched('swal:alert');
+
+    foreach ($students as $student) {
+        $this->assertDatabaseHas('students', [
+            'id' => $student->id,
+            'is_active' => true
+        ]);
+    }
+});
+
+test('authenticated users can bulk deactivate students', function () {
+    $user = User::factory()->create();
+    $students = Student::factory()->count(2)->create(['is_active' => true]);
+    $studentIds = $students->pluck('id')->map(fn($id) => (string) $id)->toArray();
+
+    Livewire::actingAs($user)
+        ->test('pages::students.index')
+        ->set('selectedStudents', $studentIds)
+        ->call('bulkDeactivate')
+        ->assertDispatched('swal:alert');
+
+    foreach ($students as $student) {
+        $this->assertDatabaseHas('students', [
+            'id' => $student->id,
+            'is_active' => false
+        ]);
+    }
+});
