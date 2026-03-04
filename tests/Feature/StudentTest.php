@@ -234,3 +234,25 @@ test('authenticated users can view the student directory with cards', function (
         ->assertDontSee($student2->first_name) // only active returned
         ->assertSee('Student Directory');
 });
+
+test('authenticated users can view a student profile detail', function () {
+    $user = User::factory()->create();
+    $student = Student::factory()->create(['is_active' => true]);
+
+    $response = $this->actingAs($user)->get(route('directory.show', $student));
+    $response->assertOk();
+
+    Livewire::actingAs($user)
+        ->test('pages::directory.show', ['student' => $student])
+        ->assertSee($student->first_name)
+        ->assertSee($student->major)
+        ->assertSee('Student Information');
+});
+
+test('authenticated users cannot view inactive student profile details', function () {
+    $user = User::factory()->create();
+    $student = Student::factory()->create(['is_active' => false]);
+
+    $response = $this->actingAs($user)->get(route('directory.show', $student));
+    $response->assertNotFound();
+});

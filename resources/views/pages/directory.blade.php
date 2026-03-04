@@ -49,33 +49,35 @@ new class extends Component {
     @if ($students->count() > 0)
         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             @foreach ($students as $student)
-                <flux:card class="flex flex-col gap-4 hover:shadow-md transition-shadow">
-                    <div class="flex items-start justify-between">
-                        <div class="flex items-center gap-3">
-                            <flux:avatar size="lg" :name="$student->first_name . ' ' . $student->last_name" />
-                            <div>
-                                <flux:heading size="lg">{{ $student->first_name }} {{ $student->last_name }}</flux:heading>
-                                <flux:text class="text-sm font-medium text-neutral-500">{{ $student->student_id }}</flux:text>
+                <a href="{{ route('directory.show', $student) }}" wire:navigate class="block outline-none focus:ring-2 focus:ring-zinc-500 rounded-xl">
+                    <flux:card class="flex flex-col gap-4 hover:shadow-md transition-shadow h-full cursor-pointer">
+                        <div class="flex items-start justify-between">
+                            <div class="flex items-center gap-3">
+                                <flux:avatar size="lg" :name="$student->first_name . ' ' . $student->last_name" />
+                                <div>
+                                    <flux:heading size="lg" class="group-hover:text-blue-600 transition-colors">{{ $student->first_name }} {{ $student->last_name }}</flux:heading>
+                                    <flux:text class="text-sm font-medium text-neutral-500">{{ $student->student_id }}</flux:text>
+                                </div>
                             </div>
+                            <flux:badge size="sm" color="zinc">{{ $student->major }}</flux:badge>
                         </div>
-                        <flux:badge size="sm" color="zinc">{{ $student->major }}</flux:badge>
-                    </div>
 
-                    <flux:separator />
+                        <flux:separator />
 
-                    <div class="flex flex-col gap-2">
-                        <div class="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
-                            <flux:icon.envelope class="size-4" />
-                            <span>{{ $student->email }}</span>
-                        </div>
-                        @if ($student->phone)
+                        <div class="flex flex-col gap-2">
                             <div class="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
-                                <flux:icon.phone class="size-4" />
-                                <span>{{ $student->phone }}</span>
+                                <flux:icon.envelope class="size-4" />
+                                <span class="truncate">{{ $student->email }}</span>
                             </div>
-                        @endif
-                    </div>
-                </flux:card>
+                            @if ($student->phone)
+                                <div class="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-400">
+                                    <flux:icon.phone class="size-4" />
+                                    <span>{{ $student->phone }}</span>
+                                </div>
+                            @endif
+                        </div>
+                    </flux:card>
+                </a>
             @endforeach
         </div>
 
